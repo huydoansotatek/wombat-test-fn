@@ -1,0 +1,104 @@
+@import "./_variable";
+.table-container {
+  border-top-left-radius: 0 !important ;
+  border-top-right-radius: 0 !important ;
+  table {
+    thead {
+      tr {
+        .check-box-header {
+          min-width: 0 !important ;
+        }
+        .align-center {
+          padding-right: 0px !important;
+          padding-left: 27px !important;
+        }
+        th {
+          // text-align: center;
+          // white-space: nowrap;
+          font-weight: 600;
+          min-width: 6vw;
+          border-top: 1px solid $dark-green;
+          border-bottom: 1px solid $dark-green;
+          padding-right: 16px !important;
+          span {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+          }
+
+          .checkbox-header {
+            &.MuiIconButton-colorSecondary {
+              &:hover {
+                background-color: $light-green-1;
+              }
+            }
+
+            &.MuiCheckbox-colorSecondary {
+              &.Mui-checked {
+                color: $dark-green;
+              }
+            }
+          }
+        }
+
+        .stickyTableCell {
+          z-index: 100;
+          background-color: #fafafa;
+          position: sticky;
+        }
+      }
+    }
+
+    tbody {
+      &.jd-compare {
+        tr {
+          &:hover {
+            background-color: transparent !important;
+          }
+        }
+        td {
+          border-bottom: none;
+        }
+      }
+      tr {
+        .stickyTableCell {
+          z-index: 100;
+          background-color: #fafafa;
+          position: sticky;
+        }
+        &:hover {
+          background-color: $gray-1;
+        }
+
+        &.item-selected {
+          &.Mui-selected {
+            background-color: $light-green-1;
+            &:hover {
+              background-color: $light-green-1;
+            }
+          }
+        }
+        th {
+          // text-align: center;
+        }
+        td {
+          line-height: 2;
+          // text-align: center;
+          padding-right: 16px !important;
+          .checkbox-body {
+            &.MuiIconButton-colorSecondary {
+              &:hover {
+                background-color: $light-green-1;
+              }
+            }
+            &.MuiCheckbox-colorSecondary {
+              &.Mui-checked {
+                color: $dark-green;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

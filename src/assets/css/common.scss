@@ -1,0 +1,62 @@
+@import './_variable.scss';
+body {
+  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif !important;
+  font-size: 16px;
+  margin: 0;
+  padding: 0;
+}
+
+//--- Bar icon
+.bar-icon {
+  display: inline-block;
+  width: 21px;
+
+  span {
+    background-color: white;
+    border-radius: 500px;
+    display: block;
+    float: left;
+    height: 2px;
+    margin-bottom: 5px;
+    width: 21px;
+
+    &:nth-child(2) {
+      width: 15px;
+    }
+
+    &:nth-child(3) {
+      margin-bottom: 0;
+    }
+  }
+}
+.MuiPopover-paper {
+  border-radius: 12px !important;
+}
+
+//--- Scroll Bar
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  box-shadow: inset 0 0 5px #eeeeee;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #eaeaea;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6d6e70;
+}
+
+.is-require::after {
+  content: '*';
+  color: #de544f;
+  margin-left: 5px;
+}
+
+.optionLabelEmail {
+  color: rgb(168, 153, 153);
+}
