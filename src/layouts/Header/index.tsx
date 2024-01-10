@@ -28,7 +28,6 @@ const Header = () => {
           <Icons.DefaultAvatarIcon />
           <div className={styles.textContainer}>
             <p className={styles.userName}>Wombat exchange app</p>
-            <p className={styles.userRole}>Huy doan</p>
           </div>
         </Box>
         <Popover
