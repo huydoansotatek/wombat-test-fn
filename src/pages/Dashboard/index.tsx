@@ -3,7 +3,17 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import { Button, Grid, Paper, TextField } from "@mui/material";
+import {
+  Button,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Grid,
+  Paper,
+  Radio,
+  RadioGroup,
+  TextField,
+} from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { fromWad, quoteSwap, toWad } from "help";
@@ -23,18 +33,19 @@ export const DECIMALS_SOLANA = BigNumber(8);
 export const DECIMALS_STELLAR = BigNumber(7);
 export const DECIMALS_EVM = BigNumber(18);
 
-export const ampFactor_solana = BigNumber(12500);
-export const haircutRate_solana = BigNumber(0);
+export const ampFactor_solana = BigNumber(25000);
+export const haircutRate_solana = BigNumber(200000);
 
 export const ampFactor_stellar = BigNumber(12500);
 export const haircutRate_stellar = BigNumber(1000);
 
-export const ampFactor_evm = BigNumber(12500);
-export const haircutRate_evm = BigNumber(1000);
+export const ampFactor_evm = BigNumber(250000000000000);
+export const haircutRate_evm = BigNumber(20000000000000);
 
 export enum TYPE_NETWORK {
   SOLANA,
   STELLAR,
+  EVM,
 }
 
 export type AssetData = {
@@ -72,8 +83,8 @@ function a11yProps(index: number) {
 
 export default function Dashboard() {
   const [value, setValue] = React.useState(0);
-  const [resultSwap, setResultSwap] = React.useState<any>([]);
-  console.log("resultSwap.toNumber()", new BigNumber(resultSwap[0]).toNumber());
+  const [resultSwapIn, setResultSwapIn] = React.useState<any>([]);
+  const [resultSwapOut, setResultSwapOut] = React.useState<any>([]);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -92,39 +103,63 @@ export default function Dashboard() {
     watch,
     formState: { errors },
   } = useForm<any>();
-  const onSubmit: SubmitHandler<any> = (data) => {
-    const result = get_amount_in(
-      TYPE_NETWORK.STELLAR,
+  const onSubmitIn: SubmitHandler<any> = (data) => {
+    const resultIn = get_amount_in(
+      data.netWork == 0
+        ? TYPE_NETWORK.SOLANA
+        : data.netWork == 1
+        ? TYPE_NETWORK.STELLAR
+        : TYPE_NETWORK.EVM,
       {
-        cash: BigNumber(1000000),
-        liability: BigNumber(1000000),
-        underlyingDecimals: BigNumber(6),
+        cash: BigNumber(data.fromAssetCash),
+        liability: BigNumber(data.fromAssetLiability),
+        underlyingDecimals: BigNumber(data.fromAssetUnderlyingDecimals),
       },
       {
-        cash: BigNumber(12002000),
-        liability: BigNumber(11999600),
-        underlyingDecimals: BigNumber(6),
+        cash: BigNumber(data.toAssetCash),
+        liability: BigNumber(data.toAssetLiability),
+        underlyingDecimals: BigNumber(data.toAssetUnderlyingDecimals),
       },
-      BigNumber(10000)
+      data.toAmount && BigNumber(data.toAmount)
     );
-    setResultSwap(new BigNumber(result[0]).toNumber());
-    console.log("data", new BigNumber(result[0]).toNumber());
+    setResultSwapIn(new BigNumber(resultIn[0]).toNumber());
+  };
+  const onSubmitOut: SubmitHandler<any> = (data) => {
+    const resultOut = get_amount_out(
+      data.netWork == 0
+        ? TYPE_NETWORK.SOLANA
+        : data.netWork == 1
+        ? TYPE_NETWORK.STELLAR
+        : TYPE_NETWORK.EVM,
+      {
+        cash: BigNumber(data.fromAssetCash),
+        liability: BigNumber(data.fromAssetLiability),
+        underlyingDecimals: BigNumber(data.fromAssetUnderlyingDecimals),
+      },
+      {
+        cash: BigNumber(data.toAssetCash),
+        liability: BigNumber(data.toAssetLiability),
+        underlyingDecimals: BigNumber(data.toAssetUnderlyingDecimals),
+      },
+      data.fromAmount && BigNumber(data.fromAmount)
+    );
+    setResultSwapOut(new BigNumber(resultOut[0]).toNumber());
   };
 
-  get_amount_out(
-    TYPE_NETWORK.STELLAR,
-    {
-      cash: BigNumber(1000000),
-      liability: BigNumber(1000000),
-      underlyingDecimals: BigNumber(6),
-    },
-    {
-      cash: BigNumber(12002000),
-      liability: BigNumber(11999600),
-      underlyingDecimals: BigNumber(6),
-    },
-    BigNumber(10000)
-  );
+  // get_amount_out(
+  //   TYPE_NETWORK.STELLAR,
+  //   {
+  //     cash: BigNumber(1000000),
+  //     liability: BigNumber(1000000),
+  //     underlyingDecimals: BigNumber(6),
+  //   },
+  //   {
+  //     cash: BigNumber(12002000),
+  //     liability: BigNumber(11999600),
+  //     underlyingDecimals: BigNumber(6),
+  //   },
+  //   BigNumber(10000)
+  // );
 
   // get_amount_in(
   //   TYPE_NETWORK.STELLAR,
@@ -216,171 +251,298 @@ export default function Dashboard() {
     return WAD;
   }
 
-  const handleSwapClick = () => {
-    const result = get_amount_in(
-      TYPE_NETWORK.STELLAR,
-      {
-        cash: BigNumber(1000000),
-        liability: BigNumber(1000000),
-        underlyingDecimals: BigNumber(6),
-      },
-      {
-        cash: BigNumber(12002000),
-        liability: BigNumber(11999600),
-        underlyingDecimals: BigNumber(6),
-      },
-      BigNumber(10000)
-    );
-    console.log("result", result);
-  };
-
   return (
-    <Box
-      sx={{
-        flexGrow: 1,
-        bgcolor: "background.paper",
-        display: "flex",
-        height: 524,
-      }}
-    >
-      <Tabs
-        orientation="vertical"
-        variant="scrollable"
-        value={value}
-        onChange={handleChange}
-        aria-label="Vertical tabs example"
-        sx={{ borderRight: 1, borderColor: "divider" }}
+    <>
+      <Box
+        sx={{
+          flexGrow: 1,
+          bgcolor: "background.paper",
+          display: "flex",
+          height: 524,
+        }}
       >
-        <Tab label="Item One" {...a11yProps(0)} />
-        <Tab label="Item Two" {...a11yProps(1)} />
-        <Tab label="Item Three" {...a11yProps(2)} />
-        <Tab label="Item Four" {...a11yProps(3)} />
-        <Tab label="Item Five" {...a11yProps(4)} />
-        <Tab label="Item Six" {...a11yProps(5)} />
-        <Tab label="Item Seven" {...a11yProps(6)} />
-      </Tabs>
-      <TabPanel value={value} index={0}>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <Grid container spacing={2}>
-            <Grid item xs={4}>
-              <Item>
-                {" "}
-                <TextField
-                  {...register("fromAssetCash")}
-                  id="outlined-multiline-flexible"
-                  label="fromAssetCash"
-                  multiline
-                  maxRows={4}
+        <Tabs
+          orientation="vertical"
+          variant="scrollable"
+          value={value}
+          onChange={handleChange}
+          aria-label="Vertical tabs example"
+          sx={{ borderRight: 1, borderColor: "divider" }}
+        >
+          <Tab label="Get amount in" {...a11yProps(0)} />
+          <Tab label="get amount out" {...a11yProps(1)} />
+          {/* <Tab label="Item Three" {...a11yProps(2)} />
+          <Tab label="Item Four" {...a11yProps(3)} />
+          <Tab label="Item Five" {...a11yProps(4)} />
+          <Tab label="Item Six" {...a11yProps(5)} />
+          <Tab label="Item Seven" {...a11yProps(6)} /> */}
+        </Tabs>
+        <TabPanel value={value} index={0}>
+          <form onSubmit={handleSubmit(onSubmitIn)}>
+            <FormControl>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="row-radio-buttons-group"
+              >
+                <FormControlLabel
+                  value={0}
+                  control={<Radio {...register("netWork")} />}
+                  label="SOLANA"
                 />
-              </Item>
-            </Grid>
-            <Grid item xs={4}>
-              <Item>
-                {" "}
-                <TextField
-                  {...register("fromAssetLiability")}
-                  id="outlined-multiline-flexible"
-                  label="fromAssetLiability"
-                  multiline
-                  maxRows={4}
+                <FormControlLabel
+                  value={1}
+                  control={<Radio {...register("netWork")} />}
+                  label="STELLAR"
                 />
-              </Item>
-            </Grid>
-            <Grid item xs={4}>
-              <Item>
-                {" "}
-                <TextField
-                  {...register("fromAssetUnderlyingDecimals")}
-                  id="outlined-multiline-flexible"
-                  label="fromAssetUnderlyingDecimals"
-                  multiline
-                  maxRows={4}
+                <FormControlLabel
+                  value={2}
+                  control={<Radio {...register("netWork")} />}
+                  label="EVM"
                 />
-              </Item>
+              </RadioGroup>
+            </FormControl>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("fromAssetCash")}
+                    id="outlined-multiline-flexible"
+                    label="fromAssetCash"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("fromAssetLiability")}
+                    id="outlined-multiline-flexible"
+                    label="fromAssetLiability"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("fromAssetUnderlyingDecimals")}
+                    id="outlined-multiline-flexible"
+                    label="fromAssetUnderlyingDecimals"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
             </Grid>
-          </Grid>
-          <Grid container spacing={2} mt={5}>
-            <Grid item xs={4}>
-              <Item>
-                {" "}
-                <TextField
-                  {...register("toAssetCash")}
-                  id="outlined-multiline-flexible"
-                  label="toAssetCash"
-                  multiline
-                  maxRows={4}
+            <Grid container spacing={2} mt={5}>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("toAssetCash")}
+                    id="outlined-multiline-flexible"
+                    label="toAssetCash"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("toAssetLiability")}
+                    id="outlined-multiline-flexible"
+                    label="toAssetLiability"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("toAssetUnderlyingDecimals")}
+                    id="outlined-multiline-flexible"
+                    label="toAssetUnderlyingDecimals"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Grid container spacing={2} mt={5}>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("toAmount")}
+                    id="outlined-multiline-flexible"
+                    label="toAmount"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Box sx={{ display: "flex", maxHeight: 80 }}>
+              <Button variant="contained" sx={{ mt: 5, mr: 5 }} type="submit">
+                Caculate
+              </Button>
+              <p style={{ fontWeight: 700, fontSize: 30 }}>
+                Result: {resultSwapIn}
+              </p>
+            </Box>
+          </form>
+        </TabPanel>
+        <TabPanel value={value} index={1}>
+          <form onSubmit={handleSubmit(onSubmitOut)}>
+            <FormControl>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="row-radio-buttons-group"
+              >
+                <FormControlLabel
+                  value={0}
+                  control={<Radio {...register("netWork")} />}
+                  label="SOLANA"
                 />
-              </Item>
-            </Grid>
-            <Grid item xs={4}>
-              <Item>
-                {" "}
-                <TextField
-                  {...register("toAssetLiability")}
-                  id="outlined-multiline-flexible"
-                  label="toAssetLiability"
-                  multiline
-                  maxRows={4}
+                <FormControlLabel
+                  value={1}
+                  control={<Radio {...register("netWork")} />}
+                  label="STELLAR"
                 />
-              </Item>
-            </Grid>
-            <Grid item xs={4}>
-              <Item>
-                {" "}
-                <TextField
-                  {...register("toAssetUnderlyingDecimals")}
-                  id="outlined-multiline-flexible"
-                  label="toAssetUnderlyingDecimals"
-                  multiline
-                  maxRows={4}
+                <FormControlLabel
+                  value={2}
+                  control={<Radio {...register("netWork")} />}
+                  label="EVM"
                 />
-              </Item>
+              </RadioGroup>
+            </FormControl>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("fromAssetCash")}
+                    id="outlined-multiline-flexible"
+                    label="fromAssetCash"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("fromAssetLiability")}
+                    id="outlined-multiline-flexible"
+                    label="fromAssetLiability"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("fromAssetUnderlyingDecimals")}
+                    id="outlined-multiline-flexible"
+                    label="fromAssetUnderlyingDecimals"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
             </Grid>
-          </Grid>
-          <Button
-            variant="contained"
-            sx={{ mt: 10 }}
-            type="submit"
-            // onClick={() =>
-            //   get_amount_in(
-            //     TYPE_NETWORK.STELLAR,
-            //     {
-            //       cash: BigNumber(1000000),
-            //       liability: BigNumber(1000000),
-            //       underlyingDecimals: BigNumber(6),
-            //     },
-            //     {
-            //       cash: BigNumber(12002000),
-            //       liability: BigNumber(11999600),
-            //       underlyingDecimals: BigNumber(6),
-            //     },
-            //     BigNumber(10000)
-            //   )
-            // }
-          >
-            Contained
-          </Button>
-          <p>Result: {resultSwap}</p>
-        </form>
-      </TabPanel>
-      <TabPanel value={value} index={1}>
-        Item Two
-      </TabPanel>
-      <TabPanel value={value} index={2}>
-        Item Three
-      </TabPanel>
-      <TabPanel value={value} index={3}>
-        Item Four
-      </TabPanel>
-      <TabPanel value={value} index={4}>
-        Item Five
-      </TabPanel>
-      <TabPanel value={value} index={5}>
-        Item Six
-      </TabPanel>
-      <TabPanel value={value} index={6}>
-        Item Seven
-      </TabPanel>
-    </Box>
+            <Grid container spacing={2} mt={5}>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("toAssetCash")}
+                    id="outlined-multiline-flexible"
+                    label="toAssetCash"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("toAssetLiability")}
+                    id="outlined-multiline-flexible"
+                    label="toAssetLiability"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("toAssetUnderlyingDecimals")}
+                    id="outlined-multiline-flexible"
+                    label="toAssetUnderlyingDecimals"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Grid container spacing={2} mt={5}>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("fromAmount")}
+                    id="outlined-multiline-flexible"
+                    label="fromAmount"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Box sx={{ display: "flex", maxHeight: 80 }}>
+              <Button variant="contained" sx={{ mt: 5, mr: 5 }} type="submit">
+                Caculate
+              </Button>
+              <p style={{ fontWeight: 700, fontSize: 30 }}>
+                Result: {resultSwapOut}
+              </p>
+            </Box>
+          </form>
+        </TabPanel>
+        <TabPanel value={value} index={2}>
+          Item Three
+        </TabPanel>
+        <TabPanel value={value} index={3}>
+          Item Four
+        </TabPanel>
+        <TabPanel value={value} index={4}>
+          Item Five
+        </TabPanel>
+        <TabPanel value={value} index={5}>
+          Item Six
+        </TabPanel>
+        <TabPanel value={value} index={6}>
+          Item Seven
+        </TabPanel>
+      </Box>
+    </>
   );
 }
