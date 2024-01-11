@@ -85,6 +85,8 @@ export default function Dashboard() {
   const [value, setValue] = React.useState(0);
   const [resultSwapIn, setResultSwapIn] = React.useState<any>([]);
   const [resultSwapOut, setResultSwapOut] = React.useState<any>([]);
+  const [covRatio, setCovRatio] = React.useState<any>(null);
+  const [tvl, setTvl] = React.useState<any>(null);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -109,7 +111,9 @@ export default function Dashboard() {
         ? TYPE_NETWORK.SOLANA
         : data.netWork == 1
         ? TYPE_NETWORK.STELLAR
-        : TYPE_NETWORK.EVM,
+        : data.netWork == 2
+        ? TYPE_NETWORK.EVM
+        : TYPE_NETWORK.STELLAR,
       {
         cash: BigNumber(data.fromAssetCash),
         liability: BigNumber(data.fromAssetLiability),
@@ -122,6 +126,7 @@ export default function Dashboard() {
       },
       data.toAmount && BigNumber(data.toAmount)
     );
+    console.log("resultIn", resultIn);
     setResultSwapIn(new BigNumber(resultIn[0]).toNumber());
   };
   const onSubmitOut: SubmitHandler<any> = (data) => {
@@ -130,7 +135,9 @@ export default function Dashboard() {
         ? TYPE_NETWORK.SOLANA
         : data.netWork == 1
         ? TYPE_NETWORK.STELLAR
-        : TYPE_NETWORK.EVM,
+        : data.netWork == 2
+        ? TYPE_NETWORK.EVM
+        : TYPE_NETWORK.STELLAR,
       {
         cash: BigNumber(data.fromAssetCash),
         liability: BigNumber(data.fromAssetLiability),
@@ -145,36 +152,22 @@ export default function Dashboard() {
     );
     setResultSwapOut(new BigNumber(resultOut[0]).toNumber());
   };
-
-  // get_amount_out(
-  //   TYPE_NETWORK.STELLAR,
-  //   {
-  //     cash: BigNumber(1000000),
-  //     liability: BigNumber(1000000),
-  //     underlyingDecimals: BigNumber(6),
-  //   },
-  //   {
-  //     cash: BigNumber(12002000),
-  //     liability: BigNumber(11999600),
-  //     underlyingDecimals: BigNumber(6),
-  //   },
-  //   BigNumber(10000)
-  // );
-
-  // get_amount_in(
-  //   TYPE_NETWORK.STELLAR,
-  //   {
-  //     cash: BigNumber(1000000),
-  //     liability: BigNumber(1000000),
-  //     underlyingDecimals: BigNumber(6),
-  //   },
-  //   {
-  //     cash: BigNumber(12002000),
-  //     liability: BigNumber(11999600),
-  //     underlyingDecimals: BigNumber(6),
-  //   },
-  //   BigNumber(10000)
-  // );
+  const onSubmitCovRatio: SubmitHandler<any> = (data) => {
+    const resultOut = get_cov_ratio(
+      BigNumber(data.cash),
+      BigNumber(data.liability)
+    );
+    setCovRatio(new BigNumber(resultOut).toNumber());
+  };
+  const onSubmitTvl: SubmitHandler<any> = (data) => {
+    const resultTvl = get_tvl(
+      BigNumber(data.liability),
+      BigNumber(data.lpTokenToTokenRatesBn),
+      BigNumber(data.tokenPrices)
+    );
+    console.log("qresultTvl", resultTvl);
+    setTvl(new BigNumber(resultTvl).toNumber());
+  };
 
   const get_amount_in = (
     network: TYPE_NETWORK,
@@ -197,6 +190,40 @@ export default function Dashboard() {
     fromAmount: BigNumber
   ) {
     return estimate_swap(network, fromAsset, toAsset, fromAmount);
+  }
+
+  const get_cov_ratio = (cash: BigNumber, liability: BigNumber) => {
+    const tvlValue =
+      cash && liability && !liability.isZero() && !cash.isZero()
+        ? cash.div(liability)
+        : 0;
+    return tvlValue;
+  };
+
+  const get_tvl = (
+    liability: BigNumber,
+    lpTokenToTokenRatesBn: BigNumber,
+    tokenPrices: BigNumber
+  ) => {
+    console.log("lpTokenToTokenRatesBn", lpTokenToTokenRatesBn);
+    const tvlInWei = calLPPrice(liability, lpTokenToTokenRatesBn, tokenPrices);
+    console.log("tvlInWei", tvlInWei);
+    return tvlInWei;
+  };
+  function calLPPrice(
+    liability: BigNumber,
+    lpTokenToTokenRatesBn: BigNumber,
+    tokenPrice?: BigNumber
+  ): BigNumber {
+    // lp token amount to token amount
+    // console.log('lpTokenToTokenRatesBn', lpTokenToTokenRatesBn)
+    // if no token price, assume the token price is 1
+    liability = liability.multipliedBy(lpTokenToTokenRatesBn);
+    if (Boolean(tokenPrice?.toNumber())) {
+      liability = liability.multipliedBy(tokenPrice as any);
+    }
+
+    return liability;
   }
 
   function estimate_swap(
@@ -271,9 +298,9 @@ export default function Dashboard() {
         >
           <Tab label="Get amount in" {...a11yProps(0)} />
           <Tab label="get amount out" {...a11yProps(1)} />
-          {/* <Tab label="Item Three" {...a11yProps(2)} />
-          <Tab label="Item Four" {...a11yProps(3)} />
-          <Tab label="Item Five" {...a11yProps(4)} />
+          <Tab label="cov ratio" {...a11yProps(3)} />
+          <Tab label="tvl" {...a11yProps(2)} />
+          {/* <Tab label="Item Five" {...a11yProps(4)} />
           <Tab label="Item Six" {...a11yProps(5)} />
           <Tab label="Item Seven" {...a11yProps(6)} /> */}
         </Tabs>
@@ -528,10 +555,136 @@ export default function Dashboard() {
           </form>
         </TabPanel>
         <TabPanel value={value} index={2}>
-          Item Three
+          <form onSubmit={handleSubmit(onSubmitCovRatio)}>
+            <FormControl>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="row-radio-buttons-group"
+              >
+                <FormControlLabel
+                  value={0}
+                  control={<Radio {...register("netWork")} />}
+                  label="SOLANA"
+                />
+                <FormControlLabel
+                  value={1}
+                  control={<Radio {...register("netWork")} />}
+                  label="STELLAR"
+                />
+                <FormControlLabel
+                  value={2}
+                  control={<Radio {...register("netWork")} />}
+                  label="EVM"
+                />
+              </RadioGroup>
+            </FormControl>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("cash")}
+                    id="outlined-multiline-flexible"
+                    label="cash"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("liability")}
+                    id="outlined-multiline-flexible"
+                    label="liability"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Box sx={{ display: "flex", maxHeight: 80 }}>
+              <Button variant="contained" sx={{ mt: 5, mr: 5 }} type="submit">
+                Caculate
+              </Button>
+              <p style={{ fontWeight: 700, fontSize: 30 }}>
+                Result: {covRatio}
+              </p>
+            </Box>
+          </form>
         </TabPanel>
         <TabPanel value={value} index={3}>
-          Item Four
+          <form onSubmit={handleSubmit(onSubmitTvl)}>
+            <FormControl>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="row-radio-buttons-group"
+              >
+                <FormControlLabel
+                  value={0}
+                  control={<Radio {...register("netWork")} />}
+                  label="SOLANA"
+                />
+                <FormControlLabel
+                  value={1}
+                  control={<Radio {...register("netWork")} />}
+                  label="STELLAR"
+                />
+                <FormControlLabel
+                  value={2}
+                  control={<Radio {...register("netWork")} />}
+                  label="EVM"
+                />
+              </RadioGroup>
+            </FormControl>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("liability")}
+                    id="outlined-multiline-flexible"
+                    label="liability"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("lpTokenToTokenRatesBn")}
+                    id="outlined-multiline-flexible"
+                    label="lpTokenToTokenRates"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={4}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("tokenPrices")}
+                    id="outlined-multiline-flexible"
+                    label="tokenPrices"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Box sx={{ display: "flex", maxHeight: 80 }}>
+              <Button variant="contained" sx={{ mt: 5, mr: 5 }} type="submit">
+                Caculate
+              </Button>
+              <p style={{ fontWeight: 700, fontSize: 30 }}>Result: {tvl}</p>
+            </Box>
+          </form>
         </TabPanel>
         <TabPanel value={value} index={4}>
           Item Five

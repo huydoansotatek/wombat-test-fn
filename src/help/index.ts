@@ -199,12 +199,12 @@ export function quoteSwap(
     ampFactor
   );
 
-  if (
-    (fromAmount.gt(BigNumber(0)) && toCash.lt(idealToAmount)) ||
-    (fromAmount.lt(BigNumber(0)) && fromCash.lt(BigNumber(0).minus(fromAmount)))
-  ) {
-    throw new Error("CORE_CASH_NOT_ENOUGH();");
-  }
+  // if (
+  //   (fromAmount.gt(BigNumber(0)) && toCash.lt(idealToAmount)) ||
+  //   (fromAmount.lt(BigNumber(0)) && fromCash.lt(BigNumber(0).minus(fromAmount)))
+  // ) {
+  //   throw new Error("CORE_CASH_NOT_ENOUGH();");
+  // }
 
   if (fromAmount.gt(BigNumber(0))) {
     // normal quote
@@ -228,10 +228,10 @@ function swapQuoteFunc(
   Dx: BigNumber,
   A: BigNumber
 ) {
-  if (Lx.isEqualTo(BigNumber(0)) || Ly.isEqualTo(BigNumber(0))) {
-    // in case div of 0
-    throw new Error("CORE_UNDERFLOW()");
-  }
+  // if (Lx.isEqualTo(BigNumber(0)) || Ly.isEqualTo(BigNumber(0))) {
+  //   // in case div of 0
+  //   throw new Error("CORE_UNDERFLOW()");
+  // }
 
   const D = Ax.plus(Ay).minus(
     wmul(
