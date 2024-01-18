@@ -1,13 +1,13 @@
 import { BigNumber } from "bignumber.js";
 
 import {
-  WAD_SOLANA,
-  WAD_STELLAR,
-  WAD_EVM,
+  DECIMALS_EVM,
   DECIMALS_SOLANA,
   DECIMALS_STELLAR,
   TYPE_NETWORK,
-  DECIMALS_EVM,
+  WAD_EVM,
+  WAD_SOLANA,
+  WAD_STELLAR,
 } from "./scripts";
 
 //rounds to zero if x*y < WAD / 2

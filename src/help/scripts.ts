@@ -1,12 +1,12 @@
 import { BigNumber } from "bignumber.js";
 
-import { toWad, fromWad, wmul, wdiv } from "./safe_math";
+import { fromWad, toWad, wdiv, wmul } from "./safe_math";
 
 import {
-  quoteSwap,
-  quoteDepositLiquidity,
-  quoteWithdrawAmount,
   highCovRatioFee,
+  quoteDepositLiquidity,
+  quoteSwap,
+  quoteWithdrawAmount,
 } from "./core_v3";
 
 export const WAD_SOLANA = BigNumber(100000000);
@@ -17,11 +17,11 @@ export const DECIMALS_SOLANA = BigNumber(8);
 export const DECIMALS_STELLAR = BigNumber(7);
 export const DECIMALS_EVM = BigNumber(18);
 
-export const ampFactor_solana = BigNumber(12500);
-export const haircutRate_solana = BigNumber(0);
+export const ampFactor_solana = BigNumber(100000000);
+export const haircutRate_solana = BigNumber(200000);
 export const withdraw_haircutRate_solana = BigNumber(0);
-export const startCovRatio_solana = BigNumber(0);
-export const endCovRatio_solana = BigNumber(0);
+export const startCovRatio_solana = BigNumber(150000000);
+export const endCovRatio_solana = BigNumber(180000000);
 
 export const ampFactor_stellar = BigNumber(12500);
 export const haircutRate_stellar = BigNumber(1000);
@@ -48,8 +48,7 @@ export type AssetData = {
   underlyingDecimals: BigNumber;
 };
 
-console.log(
-  "Swap amount out",
+console.log("Swap amount out",
   get_amount_out(
     TYPE_NETWORK.STELLAR,
     {
@@ -63,37 +62,108 @@ console.log(
       underlyingDecimals: BigNumber(6),
     },
     BigNumber(100000)
+  )[0].toString(), "\nHaircut", get_amount_out(
+    TYPE_NETWORK.STELLAR,
+    {
+      cash: BigNumber(201002000000),
+      liability: BigNumber(200999999200),
+      underlyingDecimals: BigNumber(6),
+    },
+    {
+      cash: BigNumber(100498000050),
+      liability: BigNumber(100500000000),
+      underlyingDecimals: BigNumber(6),
+    },
+    BigNumber(100000)
+  )[1].toString())
+
+
+console.log("Swap amount in",
+  get_amount_in(
+    TYPE_NETWORK.STELLAR,
+    {
+      cash: BigNumber(201002000000),
+      liability: BigNumber(200999999200),
+      underlyingDecimals: BigNumber(6),
+    },
+    {
+      cash: BigNumber(100498000050),
+      liability: BigNumber(100500000000),
+      underlyingDecimals: BigNumber(6),
+    },
+    BigNumber(100000)
+  )[0].toString(), "\nHaircut", get_amount_in(
+    TYPE_NETWORK.STELLAR,
+    {
+      cash: BigNumber(201002000000),
+      liability: BigNumber(200999999200),
+      underlyingDecimals: BigNumber(6),
+    },
+    {
+      cash: BigNumber(100498000050),
+      liability: BigNumber(100500000000),
+      underlyingDecimals: BigNumber(6),
+    },
+    BigNumber(100000)
+  )[1].toString())
+
+  console.log('test cidc')
+console.log(
+  "Deposit",
+  quotePotentialDeposit(
+    TYPE_NETWORK.SOLANA,
+    {
+      cash: BigNumber("4101702000000"),
+      liability: BigNumber("4101702000000"),
+      totalSupply: BigNumber("2300000000000"),
+      underlyingDecimals: BigNumber(6),
+    },
+    BigNumber("1000000")
   ).toString()
 );
 
-function get_amount_in(
+console.log(
+  "Withdraw",
+  quotePotentialWithdraw(
+    TYPE_NETWORK.SOLANA,
+    {
+      cash: BigNumber("4101702000000"),
+      liability: BigNumber("4101702000000"),
+      totalSupply: BigNumber("2300000000000"),
+      underlyingDecimals: BigNumber(6),
+    },
+    BigNumber("1000000")
+  ).toString()
+);
+
+export function get_amount_in(
   network: TYPE_NETWORK,
   fromAsset: Omit<AssetData, "totalSupply">,
   toAsset: Omit<AssetData, "totalSupply">,
   toAmount: BigNumber
-): BigNumber {
+): [BigNumber, BigNumber] {
   const [actualToAmount, haircut] = estimate_swap(
     network,
     fromAsset,
     toAsset,
     BigNumber(0).minus(toAmount)
   );
-  return actualToAmount;
+  return [actualToAmount, haircut];
 }
 
-function get_amount_out(
+export function get_amount_out(
   network: TYPE_NETWORK,
   fromAsset: Omit<AssetData, "totalSupply">,
   toAsset: Omit<AssetData, "totalSupply">,
   fromAmount: BigNumber
-): BigNumber {
+): [BigNumber, BigNumber] {
   const [actualToAmount, haircut] = estimate_swap(
     network,
     fromAsset,
     toAsset,
     fromAmount
   );
-  return actualToAmount;
+  return [actualToAmount, haircut];
 }
 
 export function estimate_swap(
@@ -102,7 +172,7 @@ export function estimate_swap(
   toAsset: Omit<AssetData, "totalSupply">,
   fromAmount: BigNumber
 ): [BigNumber, BigNumber] {
-  let [actualToAmount, haircut] = _quoteFrom(
+  const [actualToAmount, haircut] = _quoteFrom(
     network,
     fromAsset,
     toAsset,
@@ -111,34 +181,22 @@ export function estimate_swap(
 
   const toDecimal = toAsset.underlyingDecimals;
 
+  let newHairCut;
+
   if (fromAmount.gte(BigNumber(0))) {
-    haircut = fromWad(network, haircut, toAsset.underlyingDecimals);
+    newHairCut = fromWad(network, haircut, toAsset.underlyingDecimals);
   } else {
-    haircut = fromWad(network, haircut, fromAsset.underlyingDecimals);
+    newHairCut = fromWad(network, haircut, fromAsset.underlyingDecimals);
   }
 
-  return [fromWad(network, actualToAmount, toDecimal), haircut];
+  return [fromWad(network, actualToAmount, toDecimal), newHairCut];
 }
 
-console.log(
-  "Deposit",
-  quotePotentialDeposit(
-    TYPE_NETWORK.STELLAR,
-    {
-      cash: BigNumber("301034000000"),
-      liability: BigNumber("300999998800"),
-      totalSupply: BigNumber("300999998800"),
-      underlyingDecimals: BigNumber(6),
-    },
-    BigNumber("1000000")
-  ).toString()
-);
 export function quotePotentialDeposit(
   network: TYPE_NETWORK,
   asset: AssetData,
   amount: BigNumber
 ): BigNumber {
-    console.log('network', network)
   const decimals = asset.underlyingDecimals;
   const ampFactor =
     network == TYPE_NETWORK.SOLANA
@@ -279,9 +337,9 @@ function _quoteFrom(
     toTokenFee = toTokenFee.plus(highCovRatioFeeValue);
   } else {
     // reverse quote
-    let toAssetCash = toAsset.cash;
-    let toAssetLiability = toAsset.liability;
-    let finalToAssetCovRatio = wdiv(
+    const toAssetCash = toAsset.cash;
+    const toAssetLiability = toAsset.liability;
+    const finalToAssetCovRatio = wdiv(
       network,
       toAssetCash.plus(actualToAmount),
       toAssetLiability
@@ -317,8 +375,8 @@ function _findUpperBound(
   toAsset: Omit<AssetData, "totalSupply">,
   toAmount: BigNumber
 ): BigNumber {
-  let decimals = fromAsset.underlyingDecimals;
-  let toWadFactor = toWad(network, BigNumber("1"), decimals);
+  const decimals = fromAsset.underlyingDecimals;
+  const toWadFactor = toWad(network, BigNumber("1"), decimals);
   // the search value uses the same number of digits as the token
   const endCovRatio =
     network == TYPE_NETWORK.SOLANA
@@ -347,7 +405,7 @@ function _findUpperBound(
 
   // Note: we might limit the maximum number of rounds if the request is always rejected by the RPC server
   while (low < high) {
-    let mid = low
+    const mid = low
       .plus(high)
       .div(BigNumber("2"))
       .integerValue(BigNumber.ROUND_FLOOR);

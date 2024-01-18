@@ -7,7 +7,7 @@ import {
   WAD_STELLAR,
 } from "./scripts";
 
-import { toWad, wdiv, wmul, sqrt } from "./safe_math";
+import { sqrt, wdiv, wmul } from "./safe_math";
 
 export function quoteSwap(
   network: TYPE_NETWORK,
@@ -24,8 +24,8 @@ export function quoteSwap(
     network == TYPE_NETWORK.SOLANA
       ? WAD_SOLANA
       : network == TYPE_NETWORK.STELLAR
-      ? WAD_STELLAR
-      : WAD_EVM;
+        ? WAD_STELLAR
+        : WAD_EVM;
   if (fromAmount.lt(BigNumber(0))) {
     fromAmount = wdiv(network, fromAmount, WAD.minus(haircutRate));
   }
@@ -33,8 +33,8 @@ export function quoteSwap(
   let fromCash = fromAsset.cash;
   let fromLiability = fromAsset.liability;
 
-  let toCash = toAsset.cash;
-  let toLiability = toAsset.liability;
+  const toCash = toAsset.cash;
+  const toLiability = toAsset.liability;
 
   if (!scaleFactor.isEqualTo(WAD)) {
     // apply scale factor on from-amounts
@@ -132,8 +132,8 @@ function _solveQuad(
     network == TYPE_NETWORK.SOLANA
       ? WAD_SOLANA
       : network == TYPE_NETWORK.STELLAR
-      ? WAD_STELLAR
-      : WAD_EVM;
+        ? WAD_STELLAR
+        : WAD_EVM;
 
   return sqrt(b.times(b).plus(c.times(BigNumber(4).times(WAD))), b)
     .minus(b)
@@ -152,31 +152,34 @@ export function quoteDepositLiquidity(
     network == TYPE_NETWORK.SOLANA
       ? WAD_SOLANA
       : network == TYPE_NETWORK.STELLAR
-      ? WAD_STELLAR
-      : WAD_EVM;
+        ? WAD_STELLAR
+        : WAD_EVM;
 
   const liabilityToMint =
     _equilCovRatio == WAD
       ? exactDepositLiquidityInEquilImpl(
-          network,
-          amount,
-          asset.cash,
-          asset.liability,
-          ampFactor
-        )
+        network,
+        amount,
+        asset.cash,
+        asset.liability,
+        ampFactor
+      )
       : exactDepositLiquidityImpl(
-          network,
-          amount,
-          asset.cash,
-          asset.liability,
-          ampFactor,
-          _equilCovRatio
-        );
+        network,
+        amount,
+        asset.cash,
+        asset.liability,
+        ampFactor,
+        _equilCovRatio
+      );
 
   const liability = asset.liability;
   const lpTokenToMint = liability.isEqualTo(BigNumber(0))
     ? liabilityToMint
-    : liabilityToMint.times(asset.totalSupply).div(liability);
+    : liabilityToMint
+      .times(asset.totalSupply)
+      .div(liability)
+      .integerValue(BigNumber.ROUND_FLOOR);
 
   return [lpTokenToMint, liabilityToMint];
 }
@@ -193,12 +196,13 @@ export function quoteWithdrawAmount(
     network == TYPE_NETWORK.SOLANA
       ? WAD_SOLANA
       : network == TYPE_NETWORK.STELLAR
-      ? WAD_STELLAR
-      : WAD_EVM;
+        ? WAD_STELLAR
+        : WAD_EVM;
 
   const liabilityToBurn = asset.liability
     .times(liquidity)
-    .div(asset.totalSupply);
+    .div(asset.totalSupply)
+    .integerValue(BigNumber.ROUND_FLOOR);
 
   if (liabilityToBurn.isEqualTo(BigNumber(0))) {
     throw new Error("CORE_ZERO_LIQUIDITY()");
@@ -206,20 +210,20 @@ export function quoteWithdrawAmount(
 
   let amount = _equilCovRatio.isEqualTo(WAD)
     ? withdrawalAmountInEquilImpl(
-        network,
-        BigNumber(0).minus(liabilityToBurn),
-        asset.cash,
-        asset.liability,
-        ampFactor
-      )
+      network,
+      BigNumber(0).minus(liabilityToBurn),
+      asset.cash,
+      asset.liability,
+      ampFactor
+    )
     : withdrawalAmountImpl(
-        network,
-        BigNumber(0).minus(liabilityToBurn),
-        asset.cash,
-        asset.liability,
-        ampFactor,
-        _equilCovRatio
-      );
+      network,
+      BigNumber(0).minus(liabilityToBurn),
+      asset.cash,
+      asset.liability,
+      ampFactor,
+      _equilCovRatio
+    );
   let withdrawalHaircut = BigNumber(0);
 
   // charge withdrawal haircut
@@ -245,7 +249,7 @@ function withdrawalAmountImpl(
   const L_i_ = L_i.plus(delta_i);
   const r_i = wdiv(network, A_i, L_i);
   const delta_D = wmul(network, delta_i, _equilCovRatio).minus(
-    delta_i.times(A).div(_equilCovRatio)
+    delta_i.times(A).div(_equilCovRatio).integerValue(BigNumber.ROUND_FLOOR)
   ); // The only line that is different
   const b = BigNumber(0).minus(
     wmul(network, L_i, r_i.minus(wdiv(network, A, r_i)).plus(delta_D))
@@ -269,13 +273,16 @@ function withdrawalAmountInEquilImpl(
     network == TYPE_NETWORK.SOLANA
       ? WAD_SOLANA
       : network == TYPE_NETWORK.STELLAR
-      ? WAD_STELLAR
-      : WAD_EVM;
+        ? WAD_STELLAR
+        : WAD_EVM;
   const L_i_ = L_i.plus(delta_i);
   const r_i = wdiv(network, A_i, L_i);
 
   const rho = wmul(network, L_i, r_i.minus(wdiv(network, A, r_i)));
-  const beta = rho.plus(wmul(network, delta_i, WAD.minus(A))).div(BigNumber(2));
+  const beta = rho
+    .plus(wmul(network, delta_i, WAD.minus(A)))
+    .div(BigNumber(2))
+    .integerValue(BigNumber.ROUND_FLOOR);
   const A_i_ = beta.plus(
     sqrt(beta.times(beta).plus(wmul(network, A, L_i_.times(L_i_))), beta)
   );
@@ -297,8 +304,8 @@ function exactDepositLiquidityInEquilImpl(
     network == TYPE_NETWORK.SOLANA
       ? WAD_SOLANA
       : network == TYPE_NETWORK.STELLAR
-      ? WAD_STELLAR
-      : WAD_EVM;
+        ? WAD_STELLAR
+        : WAD_EVM;
   // public pure returns (int256 liquidity)
   if (L_i.isEqualTo(BigNumber(0))) {
     // if this is a deposit, there is no reward/fee
@@ -323,9 +330,9 @@ function exactDepositLiquidityInEquilImpl(
     .minus(wmul(network, k, k))
     .plus(wmul(network, wmul(network, A, L_i), L_i));
   const l = b.times(b).minus(BigNumber(4).times(A).times(c));
-  return wdiv(network, BigNumber(0).minus(b).plus(sqrt(l, b)), A).div(
-    BigNumber(2).integerValue(BigNumber.ROUND_FLOOR)
-  );
+  return wdiv(network, BigNumber(0).minus(b).plus(sqrt(l, b)), A)
+    .div(BigNumber(2))
+    .integerValue(BigNumber.ROUND_FLOOR);
 }
 
 function exactDepositLiquidityImpl(
@@ -336,12 +343,6 @@ function exactDepositLiquidityImpl(
   A: BigNumber,
   _equilCovRatio: BigNumber
 ) {
-  const WAD =
-    network == TYPE_NETWORK.SOLANA
-      ? WAD_SOLANA
-      : network == TYPE_NETWORK.STELLAR
-      ? WAD_STELLAR
-      : WAD_EVM;
 
   // public pure returns (int256 liquidity)
   if (L_i.isEqualTo(BigNumber(0))) {
@@ -361,7 +362,8 @@ function exactDepositLiquidityImpl(
   //k.wmul(_equilCovRatio) - (k * A) / _equilCovRatio + 2 * A.wmul(L_i); // The only line that is different
   const b = wmul(network, k, _equilCovRatio)
     .minus(k.times(A))
-    .div(_equilCovRatio.plus(BigNumber(2).times(wmul(network, A, L_i))));
+    .div(_equilCovRatio.plus(BigNumber(2).times(wmul(network, A, L_i))))
+    .integerValue(BigNumber.ROUND_FLOOR);
   const c = wmul(
     network,
     k,
@@ -370,9 +372,9 @@ function exactDepositLiquidityImpl(
     .minus(wmul(network, k, k))
     .plus(wmul(network, wmul(network, A, L_i), L_i));
   const l = b.times(b).minus(BigNumber(4).times(A).times(c));
-  return wdiv(network, BigNumber(0).minus(b).plus(sqrt(l, b)), A).div(
-    BigNumber(2).integerValue(BigNumber.ROUND_FLOOR)
-  );
+  return wdiv(network, BigNumber(0).minus(b).plus(sqrt(l, b)), A)
+    .div(BigNumber(2))
+    .integerValue(BigNumber.ROUND_FLOOR);
 }
 
 export function highCovRatioFee(
@@ -388,8 +390,8 @@ export function highCovRatioFee(
     network == TYPE_NETWORK.SOLANA
       ? WAD_SOLANA
       : network == TYPE_NETWORK.STELLAR
-      ? WAD_STELLAR
-      : WAD_EVM;
+        ? WAD_STELLAR
+        : WAD_EVM;
   const finalFromAssetCovRatio = wdiv(
     network,
     fromAssetCash.plus(fromAmount),
@@ -445,8 +447,8 @@ function _highCovRatioFee(
   const a = initCovRatio.lte(startCovRatio)
     ? BigNumber("0")
     : initCovRatio
-        .minus(startCovRatio)
-        .times(initCovRatio.minus(startCovRatio));
+      .minus(startCovRatio)
+      .times(initCovRatio.minus(startCovRatio));
   const b = finalCovRatio
     .minus(startCovRatio)
     .times(finalCovRatio.minus(startCovRatio));
@@ -459,7 +461,8 @@ function _highCovRatioFee(
           .minus(initCovRatio)
           .div(BigNumber(2))
           .integerValue(BigNumber.ROUND_FLOOR)
-      ),
+      )
+      .integerValue(BigNumber.ROUND_FLOOR),
     endCovRatio.minus(startCovRatio)
   );
 
