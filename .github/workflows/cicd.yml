@@ -1,0 +1,20 @@
+name: wombat-test-fn
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-development:
+    name: Deploy development
+    runs-on: self-hosted
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v3
+      - name: Run build
+        run: |
+          pwd
+          ls -la
+          docker-compose up -d --build

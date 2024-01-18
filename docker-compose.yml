@@ -1,0 +1,14 @@
+version: '3.7'
+
+services:
+  wombat-test-fn:
+    container_name: wombat-test-fn
+    build: .
+    ports:
+      - 3002:3002
+    networks:
+      - wombat-network
+
+networks:
+  wombat-network:
+    external: true
