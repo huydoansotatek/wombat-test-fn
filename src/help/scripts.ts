@@ -7,6 +7,7 @@ import {
   quoteDepositLiquidity,
   quoteSwap,
   quoteWithdrawAmount,
+  quoteWithdrawAmountFromOtherAsset,
 } from "./core_v3";
 
 export const WAD_SOLANA = BigNumber(100000000);
@@ -17,8 +18,8 @@ export const DECIMALS_SOLANA = BigNumber(8);
 export const DECIMALS_STELLAR = BigNumber(7);
 export const DECIMALS_EVM = BigNumber(18);
 
-export const ampFactor_solana = BigNumber(100000000);
-export const haircutRate_solana = BigNumber(200000);
+export const ampFactor_solana = BigNumber(25000);
+export const haircutRate_solana = BigNumber(2000);
 export const withdraw_haircutRate_solana = BigNumber(0);
 export const startCovRatio_solana = BigNumber(150000000);
 export const endCovRatio_solana = BigNumber(180000000);
@@ -48,7 +49,23 @@ export type AssetData = {
   underlyingDecimals: BigNumber;
 };
 
-console.log("Swap amount out",
+console.log(
+  "Swap amount out",
+  get_amount_out(
+    TYPE_NETWORK.STELLAR,
+    {
+      cash: BigNumber(413267583365),
+      liability: BigNumber(407020018000),
+      underlyingDecimals: BigNumber(6),
+    },
+    {
+      cash: BigNumber(99273124012),
+      liability: BigNumber(105520025600),
+      underlyingDecimals: BigNumber(6),
+    },
+    BigNumber(1403)
+  )[0].toString(),
+  "\nHaircut",
   get_amount_out(
     TYPE_NETWORK.STELLAR,
     {
@@ -62,23 +79,11 @@ console.log("Swap amount out",
       underlyingDecimals: BigNumber(6),
     },
     BigNumber(100000)
-  )[0].toString(), "\nHaircut", get_amount_out(
-    TYPE_NETWORK.STELLAR,
-    {
-      cash: BigNumber(201002000000),
-      liability: BigNumber(200999999200),
-      underlyingDecimals: BigNumber(6),
-    },
-    {
-      cash: BigNumber(100498000050),
-      liability: BigNumber(100500000000),
-      underlyingDecimals: BigNumber(6),
-    },
-    BigNumber(100000)
-  )[1].toString())
+  )[1].toString()
+);
 
-
-console.log("Swap amount in",
+console.log(
+  "Swap amount in",
   get_amount_in(
     TYPE_NETWORK.STELLAR,
     {
@@ -92,7 +97,9 @@ console.log("Swap amount in",
       underlyingDecimals: BigNumber(6),
     },
     BigNumber(100000)
-  )[0].toString(), "\nHaircut", get_amount_in(
+  )[0].toString(),
+  "\nHaircut",
+  get_amount_in(
     TYPE_NETWORK.STELLAR,
     {
       cash: BigNumber(201002000000),
@@ -105,9 +112,28 @@ console.log("Swap amount in",
       underlyingDecimals: BigNumber(6),
     },
     BigNumber(100000)
-  )[1].toString())
+  )[1].toString()
+);
 
-  console.log('test cidc')
+console.log(
+  "Withdraw from other asset",
+  quotePotentialWithdrawFromOtherAsset(
+    TYPE_NETWORK.STELLAR,
+    {
+      cash: BigNumber("413377583365"),
+      liability: BigNumber("407020008000"),
+      underlyingDecimals: BigNumber("6"),
+      totalSupply: BigNumber("407020018000"),
+    },
+    {
+      cash: BigNumber("99163161594"),
+      liability: BigNumber("105520025600"),
+      underlyingDecimals: BigNumber("6"),
+    },
+    BigNumber("100000000")
+  )[0].toString()
+);
+
 console.log(
   "Deposit",
   quotePotentialDeposit(
@@ -246,6 +272,73 @@ export function quotePotentialWithdraw(
   amount = fromWad(network, amount, asset.underlyingDecimals);
 
   return amount;
+}
+
+export function quotePotentialWithdrawFromOtherAsset(
+  network: TYPE_NETWORK,
+  fromAsset: AssetData,
+  toAsset: Omit<AssetData, "totalSupply">,
+  liquidity: BigNumber
+): [BigNumber, BigNumber] {
+  const ampFactor =
+    network == TYPE_NETWORK.SOLANA
+      ? ampFactor_solana
+      : network == TYPE_NETWORK.STELLAR
+        ? ampFactor_stellar
+        : ampFactor_evm;
+
+  const scaleFactor = _quoteFactor(network);
+
+  const haircutRate =
+    network == TYPE_NETWORK.SOLANA
+      ? haircutRate_solana
+      : network == TYPE_NETWORK.STELLAR
+        ? haircutRate_stellar
+        : haircutRate_evm;
+
+  const startCovRatio =
+    network == TYPE_NETWORK.SOLANA
+      ? startCovRatio_solana
+      : network == TYPE_NETWORK.STELLAR
+        ? startCovRatio_stellar
+        : startCovRatio_evm;
+
+  const endCovRatio =
+    network == TYPE_NETWORK.SOLANA
+      ? endCovRatio_solana
+      : network == TYPE_NETWORK.STELLAR
+        ? endCovRatio_stellar
+        : endCovRatio_evm;
+
+  const withdraw_haircut_rate =
+    network == TYPE_NETWORK.SOLANA
+      ? withdraw_haircutRate_solana
+      : network == TYPE_NETWORK.STELLAR
+        ? withdraw_haircutRate_stellar
+        : withdraw_haircutRate_evm;
+
+  let [finalAmount, withdrewAmount] = quoteWithdrawAmountFromOtherAsset(
+    network,
+    fromAsset,
+    toAsset,
+    liquidity,
+    ampFactor,
+    scaleFactor,
+    haircutRate,
+    startCovRatio,
+    endCovRatio,
+    _getGlobalEquilCovRatioForDepositWithdrawal(network),
+    withdraw_haircut_rate
+  );
+
+  withdrewAmount = fromWad(
+    network,
+    withdrewAmount,
+    fromAsset.underlyingDecimals
+  );
+  finalAmount = fromWad(network, finalAmount, toAsset.underlyingDecimals);
+
+  return [finalAmount, withdrewAmount];
 }
 /**
  * For stable pools and rather-stable pools, r* is assumed to be 1 to simplify calculation

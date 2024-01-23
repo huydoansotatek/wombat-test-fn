@@ -343,7 +343,6 @@ function exactDepositLiquidityImpl(
   A: BigNumber,
   _equilCovRatio: BigNumber
 ) {
-
   // public pure returns (int256 liquidity)
   if (L_i.isEqualTo(BigNumber(0))) {
     // if this is a deposit, there is no reward/fee
@@ -375,6 +374,91 @@ function exactDepositLiquidityImpl(
   return wdiv(network, BigNumber(0).minus(b).plus(sqrt(l, b)), A)
     .div(BigNumber(2))
     .integerValue(BigNumber.ROUND_FLOOR);
+}
+
+export function quoteWithdrawAmountFromOtherAsset(
+  network: TYPE_NETWORK,
+  fromAsset: AssetData,
+  toAsset: Omit<AssetData, "totalSupply">,
+  liquidity: BigNumber,
+  ampFactor: BigNumber,
+  scaleFactor: BigNumber,
+  haircutRate: BigNumber,
+  startCovRatio: BigNumber,
+  endCovRatio: BigNumber,
+  _equilCovRatio: BigNumber,
+  withdrawalHaircutRate: BigNumber
+): [BigNumber, BigNumber] {
+  const WAD =
+    network == TYPE_NETWORK.SOLANA
+      ? WAD_SOLANA
+      : network == TYPE_NETWORK.STELLAR
+        ? WAD_STELLAR
+        : WAD_EVM;
+
+  const [withdrewAmountTemp, liabilityToBurn, withdrawalHaircut] =
+    quoteWithdrawAmount(
+      network,
+      fromAsset,
+      liquidity,
+      ampFactor,
+      _equilCovRatio,
+      withdrawalHaircutRate
+    );
+
+  // quote swap
+  let fromCash = fromAsset.cash
+    .minus(withdrewAmountTemp)
+    .minus(withdrawalHaircut);
+  let fromLiability = fromAsset.liability.minus(liabilityToBurn);
+
+  let withdrewAmount = withdrewAmountTemp;
+  if (!scaleFactor.isEqualTo(WAD)) {
+    // apply scale factor on from-amounts
+    fromCash = fromCash
+      .times(scaleFactor)
+      .div(WAD)
+      .integerValue(BigNumber.ROUND_FLOOR);
+    fromLiability = fromLiability
+      .times(scaleFactor)
+      .div(WAD)
+      .integerValue(BigNumber.ROUND_FLOOR);
+    withdrewAmount = withdrewAmountTemp
+      .times(scaleFactor)
+      .div(WAD)
+      .integerValue(BigNumber.ROUND_FLOOR);
+  }
+
+  const idealToAmount = swapQuoteFunc(
+    network,
+    fromCash,
+    toAsset.cash,
+    fromLiability,
+    toAsset.liability,
+    withdrewAmount,
+    ampFactor
+  );
+
+  // remove haircut
+  let finalAmount = idealToAmount.minus(
+    wmul(network, idealToAmount, haircutRate)
+  );
+
+  if (startCovRatio.gt(BigNumber(0)) || endCovRatio.gt(BigNumber(0))) {
+    // charge high cov ratio fee
+    const fee = highCovRatioFee(
+      network,
+      fromCash,
+      fromLiability,
+      withdrewAmount,
+      finalAmount,
+      startCovRatio,
+      endCovRatio
+    );
+
+    finalAmount = finalAmount.minus(fee);
+  }
+  return [finalAmount, withdrewAmount];
 }
 
 export function highCovRatioFee(
@@ -456,12 +540,9 @@ function _highCovRatioFee(
     network,
     b
       .minus(a)
-      .div(
-        finalCovRatio
-          .minus(initCovRatio)
-          .div(BigNumber(2))
-          .integerValue(BigNumber.ROUND_FLOOR)
-      )
+      .div(finalCovRatio.minus(initCovRatio))
+      .integerValue(BigNumber.ROUND_FLOOR)
+      .div(BigNumber(2))
       .integerValue(BigNumber.ROUND_FLOOR),
     endCovRatio.minus(startCovRatio)
   );
