@@ -7,7 +7,6 @@ import {
   Button,
   FormControl,
   FormControlLabel,
-  FormLabel,
   Grid,
   Paper,
   Radio,
@@ -18,23 +17,12 @@ import { styled } from "@mui/material/styles";
 import { useForm, SubmitHandler } from "react-hook-form";
 import BigNumber from "bignumber.js";
 import {
-  quoteSwap,
-  quoteDepositLiquidity,
-  quoteWithdrawAmount,
-  highCovRatioFee,
-} from "help/core_v3";
-import { toWad, fromWad, wmul, wdiv } from "help/safe_math";
-import { estimate_swap, quotePotentialDeposit, quotePotentialWithdraw } from "help/scripts";
-import { BigNumberish } from "@ethersproject/bignumber";
-import { formatFixed, parseFixed } from "@ethersproject/bignumber";
-// import { toWad, fromWad, wmul, wdiv } from "./safe_math";
-
-// import {
-//   quoteSwap,
-//   quoteDepositLiquidity,
-//   quoteWithdrawAmount,
-//   highCovRatioFee,
-// } from "./core_v3";
+  estimate_swap,
+  quotePotentialDeposit,
+  quotePotentialWithdraw,
+} from "help/scripts";
+import { BigNumber as BignumberEther, constants } from "ethers";
+import { safeWdiv, strToWad } from "@hailstonelabs/big-number-utils";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -116,6 +104,8 @@ export default function Dashboard() {
   const [tvl, setTvl] = React.useState<any>(null);
   const [deposit, setDeposit] = React.useState<any>(null);
   const [withdrawl, setWithdrawl] = React.useState<any>(null);
+  const [priceImpactWad, setPriceImpactWad] = React.useState<any>(null);
+  console.log("priceImpactWad", priceImpactWad);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -131,7 +121,6 @@ export default function Dashboard() {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<any>();
   const onSubmitIn: SubmitHandler<any> = (data) => {
@@ -194,7 +183,7 @@ export default function Dashboard() {
       BigNumber(data.lpTokenToTokenRatesBn),
       BigNumber(data.tokenPrices)
     );
-    console.log('resultTvl', resultTvl)
+    console.log("resultTvl", resultTvl);
     setTvl(new BigNumber(resultTvl).toNumber());
   };
   const onSubmitDeposit: SubmitHandler<any> = (data) => {
@@ -236,6 +225,74 @@ export default function Dashboard() {
     setWithdrawl(new BigNumber(resultWithdrawl).toNumber());
   };
 
+  const getPriceImpactWad = (
+    targetfromTokenAmount: string,
+    targetToTokenAmount: string,
+    marketFromTokenAmount: string,
+    marketToTokenAmount: string
+  ): any => {
+    try {
+      // rate = toAmount/fromAmount
+      const targetToTokenAmountWad = strToWad(targetToTokenAmount);
+      const targetFromTokenAmountWad = strToWad(targetfromTokenAmount);
+      const marketToTokenAmountWad = strToWad(marketToTokenAmount);
+      const marketFromTokenAmountWad = strToWad(marketFromTokenAmount);
+      if (
+        targetFromTokenAmountWad.eq("0") ||
+        marketFromTokenAmountWad.eq("0")
+      ) {
+        return constants.Zero;
+      }
+      const quotedRateWad = safeWdiv(
+        targetToTokenAmountWad,
+        targetFromTokenAmountWad
+      );
+      const marketRateWad = safeWdiv(
+        marketToTokenAmountWad,
+        marketFromTokenAmountWad
+      );
+      if (marketRateWad.isZero()) {
+        return constants.Zero;
+      }
+      // price impact formula = (market rate - quoted rate) / market rate
+      const priceImpactWad = safeWdiv(
+        marketRateWad.sub(quotedRateWad),
+        marketRateWad
+      );
+      if (priceImpactWad.isNegative()) {
+        return constants.Zero;
+      }
+      return priceImpactWad;
+    } catch {
+      return constants.Zero;
+    }
+  };
+
+  const onSubmitPriceImpact: SubmitHandler<any> = (data) => {
+  
+    if (data?.valueInout == 0) {
+     const result =  getPriceImpactWad(
+        data?.targetfromTokenAmount,
+        data?.targetToTokenAmount,
+        data?.marketFromTokenAmount,
+        data?.marketToTokenAmount
+      )
+      if (result) {
+        setPriceImpactWad(result.toString());
+      }
+    } else {
+     const result =  getPriceImpactWad(
+        data?.targetToTokenAmount,
+        data?.targetfromTokenAmount,
+        data?.marketFromTokenAmount,
+        data?.marketToTokenAmount
+      );
+      if (result) {
+        setPriceImpactWad(result.toString());
+      }
+    }
+  }
+
   const get_amount_in = (
     network: TYPE_NETWORK,
     fromAsset: AssetData,
@@ -272,9 +329,7 @@ export default function Dashboard() {
     lpTokenToTokenRatesBn: BigNumber,
     tokenPrices: BigNumber
   ) => {
-    console.log("lpTokenToTokenRatesBn", lpTokenToTokenRatesBn);
     const tvlInWei = calLPPrice(liability, lpTokenToTokenRatesBn, tokenPrices);
-    console.log("tvlInWei", tvlInWei);
     return tvlInWei;
   };
   function calLPPrice(
@@ -317,7 +372,7 @@ export default function Dashboard() {
           <Tab label="tvl" {...a11yProps(2)} />
           <Tab label="Deposit" {...a11yProps(4)} />
           <Tab label="Withdrawl" {...a11yProps(5)} />
-          {/* <Tab label="Item Seven" {...a11yProps(6)} /> */}
+          <Tab label="PriceImpact" {...a11yProps(6)} />
         </Tabs>
         <TabPanel value={value} index={0}>
           <form onSubmit={handleSubmit(onSubmitIn)}>
@@ -439,7 +494,7 @@ export default function Dashboard() {
                 Caculate
               </Button>
               <p style={{ fontWeight: 700, fontSize: 30 }}>
-                Result: {resultSwapIn}
+                Result: <span style={{ color: "red" }}>{resultSwapIn}</span>
               </p>
             </Box>
           </form>
@@ -564,7 +619,7 @@ export default function Dashboard() {
                 Caculate
               </Button>
               <p style={{ fontWeight: 700, fontSize: 30 }}>
-                Result: {resultSwapOut}
+                Result: <span style={{ color: "red" }}>{resultSwapOut}</span>
               </p>
             </Box>
           </form>
@@ -625,7 +680,7 @@ export default function Dashboard() {
                 Caculate
               </Button>
               <p style={{ fontWeight: 700, fontSize: 30 }}>
-                Result: {covRatio}
+                Result: <span style={{ color: "red" }}>{covRatio}</span>
               </p>
             </Box>
           </form>
@@ -697,7 +752,9 @@ export default function Dashboard() {
               <Button variant="contained" sx={{ mt: 5, mr: 5 }} type="submit">
                 Caculate
               </Button>
-              <p style={{ fontWeight: 700, fontSize: 30 }}>Result: {tvl}</p>
+              <p style={{ fontWeight: 700, fontSize: 30 }}>
+                Result: <span style={{ color: "red" }}>{tvl}</span>
+              </p>
             </Box>
           </form>
         </TabPanel>
@@ -794,7 +851,9 @@ export default function Dashboard() {
               <Button variant="contained" sx={{ mt: 5, mr: 5 }} type="submit">
                 Caculate
               </Button>
-              <p style={{ fontWeight: 700, fontSize: 30 }}>Result: {deposit}</p>
+              <p style={{ fontWeight: 700, fontSize: 30 }}>
+                Result: <span style={{ color: "red" }}>{deposit}</span>
+              </p>
             </Box>
           </form>
         </TabPanel>
@@ -892,13 +951,95 @@ export default function Dashboard() {
                 Caculate
               </Button>
               <p style={{ fontWeight: 700, fontSize: 30 }}>
-                Result: {withdrawl}
+                Result: <span style={{ color: "red" }}>{withdrawl}</span>
               </p>
             </Box>
           </form>
         </TabPanel>
         <TabPanel value={value} index={6}>
-          Item Seven
+          <form onSubmit={handleSubmit(onSubmitPriceImpact)}>
+            <FormControl>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="row-radio-buttons-group"
+              >
+                <FormControlLabel
+                  value={0}
+                  control={<Radio {...register("valueInout")} />}
+                  label="IN"
+                />
+                <FormControlLabel
+                  value={1}
+                  control={<Radio {...register("valueInout")} />}
+                  label="OUT"
+                />
+              </RadioGroup>
+            </FormControl>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={6}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("targetfromTokenAmount")}
+                    id="outlined-multiline-flexible"
+                    label="targetfromTokenAmount"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={6}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("targetToTokenAmount")}
+                    id="outlined-multiline-flexible"
+                    label="targetToTokenAmount"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={6}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("marketFromTokenAmount")}
+                    id="outlined-multiline-flexible"
+                    label="marketFromTokenAmount"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={6}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("marketToTokenAmount")}
+                    id="outlined-multiline-flexible"
+                    label="marketToTokenAmount"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Box sx={{ display: "flex", maxHeight: 80 }}>
+              <Button variant="contained" sx={{ mt: 5, mr: 5 }} type="submit">
+                Caculate
+              </Button>
+              <p style={{ fontWeight: 700, fontSize: 30 }}>
+                Result:{" "}
+                <span style={{ color: "red" }}>
+                  {priceImpactWad}
+                </span>
+              </p>
+            </Box>
+          </form>
         </TabPanel>
       </Box>
     </>
