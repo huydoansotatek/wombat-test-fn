@@ -17,9 +17,11 @@ import { styled } from "@mui/material/styles";
 import { useForm, SubmitHandler } from "react-hook-form";
 import BigNumber from "bignumber.js";
 import {
+  _getGlobalEquilCovRatioForDepositWithdrawal,
   estimate_swap,
   quotePotentialDeposit,
   quotePotentialWithdraw,
+  quotePotentialWithdrawFromOtherAsset,
 } from "help/scripts";
 import { BigNumber as BignumberEther, constants } from "ethers";
 import { safeWdiv, strToWad } from "@hailstonelabs/big-number-utils";
@@ -105,7 +107,8 @@ export default function Dashboard() {
   const [deposit, setDeposit] = React.useState<any>(null);
   const [withdrawl, setWithdrawl] = React.useState<any>(null);
   const [priceImpactWad, setPriceImpactWad] = React.useState<any>(null);
-  console.log("priceImpactWad", priceImpactWad);
+  const [finalAmount, setFinalAmount] = React.useState<any>(null);
+  const [withdrewAmount, setWithdrewAmount] = React.useState<any>(null);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -183,7 +186,6 @@ export default function Dashboard() {
       BigNumber(data.lpTokenToTokenRatesBn),
       BigNumber(data.tokenPrices)
     );
-    console.log("resultTvl", resultTvl);
     setTvl(new BigNumber(resultTvl).toNumber());
   };
   const onSubmitDeposit: SubmitHandler<any> = (data) => {
@@ -269,29 +271,16 @@ export default function Dashboard() {
   };
 
   const onSubmitPriceImpact: SubmitHandler<any> = (data) => {
-  
-    if (data?.valueInout == 0) {
-     const result =  getPriceImpactWad(
-        data?.targetfromTokenAmount,
-        data?.targetToTokenAmount,
-        data?.marketFromTokenAmount,
-        data?.marketToTokenAmount
-      )
-      if (result) {
-        setPriceImpactWad(result.toString());
-      }
-    } else {
-     const result =  getPriceImpactWad(
-        data?.targetToTokenAmount,
-        data?.targetfromTokenAmount,
-        data?.marketFromTokenAmount,
-        data?.marketToTokenAmount
-      );
-      if (result) {
-        setPriceImpactWad(result.toString());
-      }
+    const result = getPriceImpactWad(
+      data?.targetfromTokenAmount,
+      data?.targetToTokenAmount,
+      data?.marketFromTokenAmount,
+      data?.marketToTokenAmount
+    );
+    if (result) {
+      setPriceImpactWad(result.toString());
     }
-  }
+  };
 
   const get_amount_in = (
     network: TYPE_NETWORK,
@@ -348,6 +337,33 @@ export default function Dashboard() {
     return liability;
   }
 
+  const onSubmitWithdrawOtherAsset: SubmitHandler<any> = (data) => {
+    const result = quotePotentialWithdrawFromOtherAsset(
+      data.netWork == 0
+        ? TYPE_NETWORK.SOLANA
+        : data.netWork == 1
+        ? TYPE_NETWORK.STELLAR
+        : data.netWork == 2
+        ? TYPE_NETWORK.EVM
+        : TYPE_NETWORK.STELLAR,
+      {
+        cash: BigNumber(data.cashFromAsset),
+        liability: BigNumber(data.fromAssetLiability),
+        totalSupply: BigNumber(data.totalSupplyFromAsset),
+        underlyingDecimals: BigNumber(data.underlyingDecimalsFromAsset),
+      },
+      {
+        cash: BigNumber(data.cashToAsset),
+        liability: BigNumber(data.liabilityToAsset),
+        underlyingDecimals: BigNumber(data.underlyingDecimalsToAsset),
+      },
+      BigNumber(data?.liquidity)
+    );
+
+    // setFinalAmount(BigNumber(result[0]).toString());
+    // setWithdrewAmount(result[1].toString());
+  };
+
   return (
     <>
       <Box
@@ -372,7 +388,8 @@ export default function Dashboard() {
           <Tab label="tvl" {...a11yProps(2)} />
           <Tab label="Deposit" {...a11yProps(4)} />
           <Tab label="Withdrawl" {...a11yProps(5)} />
-          <Tab label="PriceImpact" {...a11yProps(6)} />
+          <Tab label="Price Impact" {...a11yProps(6)} />
+          <Tab label="withdraw other asset" {...a11yProps(6)} />
         </Tabs>
         <TabPanel value={value} index={0}>
           <form onSubmit={handleSubmit(onSubmitIn)}>
@@ -958,24 +975,7 @@ export default function Dashboard() {
         </TabPanel>
         <TabPanel value={value} index={6}>
           <form onSubmit={handleSubmit(onSubmitPriceImpact)}>
-            <FormControl>
-              <RadioGroup
-                row
-                aria-labelledby="demo-row-radio-buttons-group-label"
-                name="row-radio-buttons-group"
-              >
-                <FormControlLabel
-                  value={0}
-                  control={<Radio {...register("valueInout")} />}
-                  label="IN"
-                />
-                <FormControlLabel
-                  value={1}
-                  control={<Radio {...register("valueInout")} />}
-                  label="OUT"
-                />
-              </RadioGroup>
-            </FormControl>
+            
             <Grid container spacing={2} mt={2}>
               <Grid item xs={6}>
                 <Item>
@@ -1033,10 +1033,155 @@ export default function Dashboard() {
                 Caculate
               </Button>
               <p style={{ fontWeight: 700, fontSize: 30 }}>
-                Result:{" "}
-                <span style={{ color: "red" }}>
-                  {priceImpactWad}
-                </span>
+                Result: <span style={{ color: "red" }}>{priceImpactWad}</span>
+              </p>
+            </Box>
+          </form>
+        </TabPanel>
+        <TabPanel value={value} index={7}>
+          <form onSubmit={handleSubmit(onSubmitWithdrawOtherAsset)}>
+            <FormControl>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="row-radio-buttons-group"
+              >
+                <FormControlLabel
+                  value={0}
+                  control={<Radio {...register("netWork")} />}
+                  label="SOLANA"
+                />
+                <FormControlLabel
+                  value={1}
+                  control={<Radio {...register("netWork")} />}
+                  label="STELLAR"
+                />
+                <FormControlLabel
+                  value={2}
+                  control={<Radio {...register("netWork")} />}
+                  label="EVM"
+                />
+              </RadioGroup>
+            </FormControl>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("cashFromAsset")}
+                    id="outlined-multiline-flexible"
+                    label="cashFromAsset"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("liabilityFromAsset")}
+                    id="outlined-multiline-flexible"
+                    label="liabilityFromAsset"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("underlyingDecimalsFromAsset")}
+                    id="outlined-multiline-flexible"
+                    label="underlyingDecimalsFromAsset"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("totalSupplyFromAsset")}
+                    id="outlined-multiline-flexible"
+                    label="totalSupplyFromAsset"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("cashToAsset")}
+                    id="outlined-multiline-flexible"
+                    label="cashToAsset"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("liabilityToAsset")}
+                    id="outlined-multiline-flexible"
+                    label="liabilityToAsset"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("underlyingDecimalsToAsset")}
+                    id="outlined-multiline-flexible"
+                    label="underlyingDecimalsToAsset"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("liquidity")}
+                    id="outlined-multiline-flexible"
+                    label="liquidity"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+
+            <Box sx={{ display: "flex", maxHeight: 80 }}>
+              <Button variant="contained" sx={{ mt: 5, mr: 5 }} type="submit">
+                Caculate
+              </Button>
+              <p style={{ fontWeight: 700, fontSize: 30 }}>
+                <div style={{ display: "flex" }}>
+                  <p style={{marginRight: '50px'}}> Result:</p>
+                  <div style={{ display: "flex", marginRight: '200px', alignItems: 'center' }}>
+                    <p>finalAmount:</p>{" "}
+                    <span style={{ color: "red" }}> {finalAmount} </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: 'center'  }}>
+                    <p>withdrewAmount:</p>
+                    <span style={{ color: "red" }}> {withdrewAmount} </span>
+                  </div>
+                </div>
               </p>
             </Box>
           </form>
