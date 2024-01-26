@@ -147,7 +147,6 @@ export default function Dashboard() {
       },
       data.toAmount && BigNumber(data.toAmount)
     );
-    console.log("resultIn", resultIn);
     setResultSwapIn(new BigNumber(resultIn[0]).toNumber());
   };
   const onSubmitOut: SubmitHandler<any> = (data) => {
@@ -348,7 +347,7 @@ export default function Dashboard() {
         : TYPE_NETWORK.STELLAR,
       {
         cash: BigNumber(data.cashFromAsset),
-        liability: BigNumber(data.fromAssetLiability),
+        liability: BigNumber(data.liabilityFromAsset),
         totalSupply: BigNumber(data.totalSupplyFromAsset),
         underlyingDecimals: BigNumber(data.underlyingDecimalsFromAsset),
       },
@@ -359,9 +358,8 @@ export default function Dashboard() {
       },
       BigNumber(data?.liquidity)
     );
-
-    // setFinalAmount(BigNumber(result[0]).toString());
-    // setWithdrewAmount(result[1].toString());
+    setFinalAmount(Number(result[0]));
+    setWithdrewAmount(Number(result[1]));
   };
 
   return (

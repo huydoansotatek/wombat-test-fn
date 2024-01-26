@@ -20,7 +20,7 @@ export const DECIMALS_EVM = BigNumber(18);
 
 export const ampFactor_solana = BigNumber(25000);
 export const haircutRate_solana = BigNumber(2000);
-export const withdraw_haircutRate_solana = BigNumber(10);
+export const withdraw_haircutRate_solana = BigNumber(0);
 export const startCovRatio_solana = BigNumber(150000000);
 export const endCovRatio_solana = BigNumber(180000000);
 
@@ -330,8 +330,6 @@ export function quotePotentialWithdrawFromOtherAsset(
     _getGlobalEquilCovRatioForDepositWithdrawal(network),
     withdraw_haircut_rate
   );
-  console.log('finalAmount', finalAmount.toString())
-  console.log('withdrewAmount', withdrewAmount.toString())
 
   withdrewAmount = fromWad(
     network,
@@ -339,7 +337,8 @@ export function quotePotentialWithdrawFromOtherAsset(
     fromAsset.underlyingDecimals
   );
   finalAmount = fromWad(network, finalAmount, toAsset.underlyingDecimals);
-
+  console.log('finalAmount', finalAmount.toString())
+console.log('withdrewAmount', withdrewAmount.toString())
   return [finalAmount, withdrewAmount];
 }
 /**

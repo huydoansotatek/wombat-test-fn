@@ -389,17 +389,7 @@ export function quoteWithdrawAmountFromOtherAsset(
   _equilCovRatio: BigNumber,
   withdrawalHaircutRate: BigNumber
 ): [BigNumber, BigNumber] {
-  console.log('first----',  network,
-  fromAsset,
-  toAsset,
-  liquidity,
-  ampFactor,
-  scaleFactor,
-  haircutRate,
-  startCovRatio,
-  endCovRatio,
-  _equilCovRatio,
-  withdrawalHaircutRate)
+ 
   const WAD =
     network == TYPE_NETWORK.SOLANA
       ? WAD_SOLANA
@@ -467,9 +457,7 @@ export function quoteWithdrawAmountFromOtherAsset(
       endCovRatio
     );
 
-    // finalAmount = finalAmount.minus(fee);
-    console.log('finalAmount--', finalAmount)
-    console.log('withdrewAmount--', withdrewAmount)
+    finalAmount = finalAmount.minus(fee);
   }
   return [finalAmount, withdrewAmount];
 }
