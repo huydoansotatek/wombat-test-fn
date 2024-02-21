@@ -337,8 +337,6 @@ export function quotePotentialWithdrawFromOtherAsset(
     fromAsset.underlyingDecimals
   );
   finalAmount = fromWad(network, finalAmount, toAsset.underlyingDecimals);
-  console.log('finalAmount', finalAmount.toString())
-console.log('withdrewAmount', withdrewAmount.toString())
   return [finalAmount, withdrewAmount];
 }
 /**

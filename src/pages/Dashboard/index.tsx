@@ -109,6 +109,7 @@ export default function Dashboard() {
   const [priceImpactWad, setPriceImpactWad] = React.useState<any>(null);
   const [finalAmount, setFinalAmount] = React.useState<any>(null);
   const [withdrewAmount, setWithdrewAmount] = React.useState<any>(null);
+  const [baseApr, setBaseApr] = React.useState<any>(null);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -361,6 +362,49 @@ export default function Dashboard() {
     setFinalAmount(Number(result[0]));
     setWithdrewAmount(Number(result[1]));
   };
+  const onSubmitBaseApr: SubmitHandler<any> = (data) => {
+    const result = aprForSolana(
+      BigNumber(data.rewardRateWad),
+      BigNumber(data.boostedPartition),
+      BigNumber(data.totalLpStakedBN)
+    );
+    setBaseApr(result.toString())
+  };
+
+  const calculateAprForSolana = (
+    multiplicationFactor: BigNumber,
+    annualReward: BigNumber,
+    rewardPrice: BigNumber,
+    totalAmount: BigNumber,
+    depositUnitPrice: BigNumber
+  ) => {
+    const annualRewardInUsdWad = annualReward.multipliedBy(rewardPrice)
+    const totalStakedAmountInUsdWad = totalAmount.multipliedBy(depositUnitPrice)
+  
+    return totalAmount > BigNumber(0) && depositUnitPrice > BigNumber(0)
+      ? (multiplicationFactor.multipliedBy(annualRewardInUsdWad)).div(totalStakedAmountInUsdWad)
+      : BigNumber(0)
+  }
+
+  const aprForSolana = React.useCallback((rewardRateWad: BigNumber, boostedPartition: BigNumber, totalLpStakedBN: BigNumber) => {
+    const lpUnitPrice = BigNumber(1)
+    const womPriceWad = BigNumber(1)
+    const annualWomRewardWad = rewardRateWad
+      .multipliedBy(BigNumber(60 * 60 * 24 * 365))
+      .multipliedBy(boostedPartition)
+      .div(BigNumber(1000))
+    const estimatedBoostedApr = !lpUnitPrice
+      ? BigNumber(0)
+      : calculateAprForSolana(
+          BigNumber(1),
+          annualWomRewardWad,
+          womPriceWad,
+          totalLpStakedBN,
+          lpUnitPrice
+        )
+    return estimatedBoostedApr
+  }, [])
+
 
   return (
     <>
@@ -388,6 +432,7 @@ export default function Dashboard() {
           <Tab label="Withdrawl" {...a11yProps(5)} />
           <Tab label="Price Impact" {...a11yProps(6)} />
           <Tab label="withdraw other asset" {...a11yProps(6)} />
+          <Tab label="base Apr" {...a11yProps(6)} />
         </Tabs>
         <TabPanel value={value} index={0}>
           <form onSubmit={handleSubmit(onSubmitIn)}>
@@ -1178,6 +1223,85 @@ export default function Dashboard() {
                   <div style={{ display: "flex", alignItems: 'center'  }}>
                     <p>withdrewAmount:</p>
                     <span style={{ color: "red" }}> {withdrewAmount} </span>
+                  </div>
+                </div>
+              </p>
+            </Box>
+          </form>
+        </TabPanel>
+        <TabPanel value={value} index={8}>
+          <form onSubmit={handleSubmit(onSubmitBaseApr)}>
+            <FormControl>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="row-radio-buttons-group"
+              >
+                <FormControlLabel
+                  value={0}
+                  control={<Radio {...register("netWork")} />}
+                  label="SOLANA"
+                />
+                <FormControlLabel
+                  value={1}
+                  control={<Radio {...register("netWork")} />}
+                  label="STELLAR"
+                />
+                <FormControlLabel
+                  value={2}
+                  control={<Radio {...register("netWork")} />}
+                  label="EVM"
+                />
+              </RadioGroup>
+            </FormControl>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("rewardRateWad")}
+                    id="outlined-multiline-flexible"
+                    label="rewardRateWad"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("boostedPartition")}
+                    id="outlined-multiline-flexible"
+                    label="boostedPartition"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("totalLpStakedBN")}
+                    id="outlined-multiline-flexible"
+                    label="totalLpStakedBN"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Box sx={{ display: "flex", maxHeight: 80 }}>
+              <Button variant="contained" sx={{ mt: 5, mr: 5 }} type="submit">
+                Caculate
+              </Button>
+              <p style={{ fontWeight: 700, fontSize: 30 }}>
+                <div style={{ display: "flex" }}>
+                  <p style={{marginRight: '50px'}}> Result:</p>
+                  <div style={{ display: "flex", marginRight: '200px', alignItems: 'center' }}>
+                    <p>baseApr:</p>{" "}
+                    <span style={{ color: "red" }}> {baseApr} </span>
                   </div>
                 </div>
               </p>
