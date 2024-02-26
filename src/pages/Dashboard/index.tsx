@@ -381,13 +381,14 @@ export default function Dashboard() {
     setBootedApr(result.toString())
   };
   const onSubmitEstimateBootApr: SubmitHandler<any> = (data) => {
+    console.log('data', data)
     estimateBoostedAprSol(
       BigNumber(data.stakedLpAmount),
       BigNumber(data.veWomBalance),
       BigNumber(data.stakeAmount),
       BigNumber(data.lockAmount),
       BigNumber(data.rewardRateWadSol),
-      BigNumber(data.boostedPartitionSol),
+      BigNumber(data.boostedPartition),
       BigNumber(data.sumOfFactorSol)
     )
   };
@@ -459,7 +460,7 @@ export default function Dashboard() {
       console.log('oldVeWomAmount', oldVeWomAmount.toString())
       console.log('////////////////')
       const lpUnitPrice = BigNumber(1)
-      const rewardRateWad = BigNumber(Number(Number(rewardRateWadSolana) !== 0 ? rewardRateWadSolana : 1))
+      const rewardRateWad = BigNumber(Number(Number(rewardRateWadSolana) !== 0 ? rewardRateWadSolana : 1000000000000000000))
       const boostedPartition = BigNumber(Number(boostedPartitionSolana))
       const womPriceWad = BigNumber(1)
       const sumOfFactors = BigNumber(Number(sumOfFactorSol))
@@ -476,6 +477,7 @@ export default function Dashboard() {
         sumOfFactors.minus(oldFactor).plus(newFactor),
         lpUnitPrice
       )
+      console.log('estimatedBoostedApr', estimatedBoostedApr)
       setEstimatedBoostedAPRForSol(Number(estimatedBoostedApr))
     },
     []
@@ -1416,7 +1418,7 @@ export default function Dashboard() {
                 <Item>
                   {" "}
                   <TextField
-                    {...register("rewardRateWadSol")}
+                    {...register("rewardRateWad")}
                     id="outlined-multiline-flexible"
                     label="rewardRateWad"
                     multiline
@@ -1545,7 +1547,7 @@ export default function Dashboard() {
                 <Item>
                   {" "}
                   <TextField
-                    {...register("rewardRateWad")}
+                    {...register("rewardRateWadSol")}
                     id="outlined-multiline-flexible"
                     label="rewardRateWad"
                     multiline
