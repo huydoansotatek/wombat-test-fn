@@ -110,6 +110,8 @@ export default function Dashboard() {
   const [finalAmount, setFinalAmount] = React.useState<any>(null);
   const [withdrewAmount, setWithdrewAmount] = React.useState<any>(null);
   const [baseApr, setBaseApr] = React.useState<any>(null);
+  const [bootedApr, setBootedApr] = React.useState<any>(null);
+  const [estimatedBoostedAPRForSol, setEstimatedBoostedAPRForSol] = React.useState<any>(null);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -370,6 +372,25 @@ export default function Dashboard() {
     );
     setBaseApr(result.toString())
   };
+  const onSubmitBootedApr: SubmitHandler<any> = (data) => {
+    const result = aprForSolana(
+      BigNumber(data.rewardRateWad),
+      BigNumber(data.boostedPartition),
+      BigNumber(data.sumOfFactors)
+    );
+    setBootedApr(result.toString())
+  };
+  const onSubmitEstimateBootApr: SubmitHandler<any> = (data) => {
+    estimateBoostedAprSol(
+      BigNumber(data.stakedLpAmount),
+      BigNumber(data.veWomBalance),
+      BigNumber(data.stakeAmount),
+      BigNumber(data.lockAmount),
+      BigNumber(data.rewardRateWadSol),
+      BigNumber(data.boostedPartitionSol),
+      BigNumber(data.sumOfFactorSol)
+    )
+  };
 
   const calculateAprForSolana = (
     multiplicationFactor: BigNumber,
@@ -406,6 +427,61 @@ export default function Dashboard() {
   }, [])
 
 
+  function sqrtSolana(x: BigNumber) {
+    const ONE = BigNumber(1)
+    const TWO = BigNumber(2)
+  
+    let z = x.plus(ONE).div(TWO)
+    let y = x
+    while (z.minus(y).isNegative()) {
+      y = z
+      z = x.div(z).plus(z).div(TWO)
+    }
+    return y
+  }
+
+ function getFactorForSolana(depositAmount: BigNumber, veWomAmount: BigNumber): BigNumber {
+    return sqrtSolana(depositAmount.multipliedBy(veWomAmount))
+  }
+
+  const estimateBoostedAprSol = React.useCallback(
+    (
+      oldDepositAmount: BigNumber,
+      oldVeWomAmount: BigNumber,
+      newDepositAmount: BigNumber,
+      newVeWomAmount: BigNumber,
+      rewardRateWadSolana: BigNumber,
+      boostedPartitionSolana: BigNumber,
+      sumOfFactorSol: BigNumber
+    ) => {
+      console.log('////////////////')
+      console.log('oldDepositAmount', oldDepositAmount.toString())
+      console.log('oldVeWomAmount', oldVeWomAmount.toString())
+      console.log('////////////////')
+      const lpUnitPrice = BigNumber(1)
+      const rewardRateWad = BigNumber(Number(Number(rewardRateWadSolana) !== 0 ? rewardRateWadSolana : 1))
+      const boostedPartition = BigNumber(Number(boostedPartitionSolana))
+      const womPriceWad = BigNumber(1)
+      const sumOfFactors = BigNumber(Number(sumOfFactorSol))
+      const newFactor = getFactorForSolana(newDepositAmount, newVeWomAmount)
+      const oldFactor = getFactorForSolana(oldDepositAmount, oldVeWomAmount)
+      const annualWomRewardWad = rewardRateWad
+        .multipliedBy(BigNumber(60 * 60 * 24 * 365))
+        .multipliedBy(boostedPartition)
+        .div(BigNumber(1000))
+      const estimatedBoostedApr = calculateAprForSolana(
+        newFactor.div(newDepositAmount),
+        annualWomRewardWad,
+        womPriceWad,
+        sumOfFactors.minus(oldFactor).plus(newFactor),
+        lpUnitPrice
+      )
+      setEstimatedBoostedAPRForSol(Number(estimatedBoostedApr))
+    },
+    []
+  )
+
+
   return (
     <>
       <Box
@@ -433,6 +509,8 @@ export default function Dashboard() {
           <Tab label="Price Impact" {...a11yProps(6)} />
           <Tab label="withdraw other asset" {...a11yProps(6)} />
           <Tab label="base Apr" {...a11yProps(6)} />
+          <Tab label="booted Apr" {...a11yProps(6)} />
+          <Tab label="estimated boot Apr" {...a11yProps(6)} />
         </Tabs>
         <TabPanel value={value} index={0}>
           <form onSubmit={handleSubmit(onSubmitIn)}>
@@ -1302,6 +1380,216 @@ export default function Dashboard() {
                   <div style={{ display: "flex", marginRight: '200px', alignItems: 'center' }}>
                     <p>baseApr:</p>{" "}
                     <span style={{ color: "red" }}> {baseApr} </span>
+                  </div>
+                </div>
+              </p>
+            </Box>
+          </form>
+        </TabPanel>
+        <TabPanel value={value} index={9}>
+          <form onSubmit={handleSubmit(onSubmitBootedApr)}>
+            <FormControl>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="row-radio-buttons-group"
+              >
+                <FormControlLabel
+                  value={0}
+                  control={<Radio {...register("netWork")} />}
+                  label="SOLANA"
+                />
+                <FormControlLabel
+                  value={1}
+                  control={<Radio {...register("netWork")} />}
+                  label="STELLAR"
+                />
+                <FormControlLabel
+                  value={2}
+                  control={<Radio {...register("netWork")} />}
+                  label="EVM"
+                />
+              </RadioGroup>
+            </FormControl>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("rewardRateWadSol")}
+                    id="outlined-multiline-flexible"
+                    label="rewardRateWad"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("boostedPartitionSol")}
+                    id="outlined-multiline-flexible"
+                    label="boostedPartition"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("sumOfFactors")}
+                    id="outlined-multiline-flexible"
+                    label="sumOfFactors"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Box sx={{ display: "flex", maxHeight: 80 }}>
+              <Button variant="contained" sx={{ mt: 5, mr: 5 }} type="submit">
+                Caculate
+              </Button>
+              <p style={{ fontWeight: 700, fontSize: 30 }}>
+                <div style={{ display: "flex" }}>
+                  <p style={{marginRight: '50px'}}> Result:</p>
+                  <div style={{ display: "flex", marginRight: '200px', alignItems: 'center' }}>
+                    <p>bootedApr:</p>{" "}
+                    <span style={{ color: "red" }}> {bootedApr} </span>
+                  </div>
+                </div>
+              </p>
+            </Box>
+          </form>
+        </TabPanel>
+        <TabPanel value={value} index={10}>
+          <form onSubmit={handleSubmit(onSubmitEstimateBootApr)}>
+            <FormControl>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="row-radio-buttons-group"
+              >
+                <FormControlLabel
+                  value={0}
+                  control={<Radio {...register("netWork")} />}
+                  label="SOLANA"
+                />
+                <FormControlLabel
+                  value={1}
+                  control={<Radio {...register("netWork")} />}
+                  label="STELLAR"
+                />
+                <FormControlLabel
+                  value={2}
+                  control={<Radio {...register("netWork")} />}
+                  label="EVM"
+                />
+              </RadioGroup>
+            </FormControl>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("stakedLpAmount")}
+                    id="outlined-multiline-flexible"
+                    label="stakedLpAmount"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("veWomBalance")}
+                    id="outlined-multiline-flexible"
+                    label="veWomBalance"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("stakeAmount")}
+                    id="outlined-multiline-flexible"
+                    label="stakeAmount"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("lockAmount")}
+                    id="outlined-multiline-flexible"
+                    label="lockAmount"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("rewardRateWad")}
+                    id="outlined-multiline-flexible"
+                    label="rewardRateWad"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("boostedPartition")}
+                    id="outlined-multiline-flexible"
+                    label="boostedPartition"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Grid container spacing={2} mt={2}>
+              <Grid item xs={3}>
+                <Item>
+                  {" "}
+                  <TextField
+                    {...register("sumOfFactorSol")}
+                    id="outlined-multiline-flexible"
+                    label="sumOfFactorSol"
+                    multiline
+                    maxRows={4}
+                  />
+                </Item>
+              </Grid>
+            </Grid>
+            <Box sx={{ display: "flex", maxHeight: 80 }}>
+              <Button variant="contained" sx={{ mt: 5, mr: 5 }} type="submit">
+                Caculate
+              </Button>
+              <p style={{ fontWeight: 700, fontSize: 30 }}>
+                <div style={{ display: "flex" }}>
+                  <p style={{marginRight: '50px'}}> Result:</p>
+                  <div style={{ display: "flex", marginRight: '200px', alignItems: 'center' }}>
+                    <p>estimateBootedApr:</p>{" "}
+                    <span style={{ color: "red" }}> {estimatedBoostedAPRForSol} </span>
                   </div>
                 </div>
               </p>
