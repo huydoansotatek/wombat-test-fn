@@ -101,7 +101,9 @@ function a11yProps(index: number) {
 export default function Dashboard() {
   const [value, setValue] = React.useState(0);
   const [resultSwapIn, setResultSwapIn] = React.useState<any>([]);
+  const [hairCutIn, setHairCutIn] = React.useState<any>([]);
   const [resultSwapOut, setResultSwapOut] = React.useState<any>([]);
+  const [hairCutOut, setHairCutOut] = React.useState<any>([]);
   const [covRatio, setCovRatio] = React.useState<any>(null);
   const [tvl, setTvl] = React.useState<any>(null);
   const [deposit, setDeposit] = React.useState<any>(null);
@@ -150,6 +152,7 @@ export default function Dashboard() {
       },
       data.toAmount && BigNumber(data.toAmount)
     );
+    setHairCutIn(new BigNumber(resultIn[1]).toNumber());
     setResultSwapIn(new BigNumber(resultIn[0]).toNumber());
   };
   const onSubmitOut: SubmitHandler<any> = (data) => {
@@ -173,6 +176,7 @@ export default function Dashboard() {
       },
       data.fromAmount && BigNumber(data.fromAmount)
     );
+    setHairCutOut(new BigNumber(resultOut[0]).toNumber());
     setResultSwapOut(new BigNumber(resultOut[0]).toNumber());
   };
   const onSubmitCovRatio: SubmitHandler<any> = (data) => {
@@ -634,7 +638,7 @@ export default function Dashboard() {
                 Caculate
               </Button>
               <p style={{ fontWeight: 700, fontSize: 30 }}>
-                Result: <span style={{ color: "red" }}>{resultSwapIn}</span>
+                Result: <span style={{ color: "red" }}>{resultSwapIn} | {hairCutIn}</span>
               </p>
             </Box>
           </form>
@@ -759,7 +763,7 @@ export default function Dashboard() {
                 Caculate
               </Button>
               <p style={{ fontWeight: 700, fontSize: 30 }}>
-                Result: <span style={{ color: "red" }}>{resultSwapOut}</span>
+                Result: <span style={{ color: "red" }}>{resultSwapOut} | {hairCutOut}</span>
               </p>
             </Box>
           </form>
