@@ -176,7 +176,7 @@ export default function Dashboard() {
       },
       data.fromAmount && BigNumber(data.fromAmount)
     );
-    setHairCutOut(new BigNumber(resultOut[0]).toNumber());
+    setHairCutOut(new BigNumber(resultOut[1]).toNumber());
     setResultSwapOut(new BigNumber(resultOut[0]).toNumber());
   };
   const onSubmitCovRatio: SubmitHandler<any> = (data) => {
